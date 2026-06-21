@@ -1,4 +1,4 @@
-const CACHE_NAME = 'urna-v1';
+const CACHE_NAME = 'urna-v2';
 const ASSETS = [
   '/',
   '/index.html',

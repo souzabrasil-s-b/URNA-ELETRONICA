@@ -1,4 +1,4 @@
-# 🗳️ Urna de Votação Estudantil
+# 🗳️ Urna de Votação Estudantil 
 
 PWA de urna eletrônica para eleições estudantis, inspirada na urna eletrônica brasileira.
 

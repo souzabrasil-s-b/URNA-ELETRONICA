@@ -440,7 +440,24 @@ canvas#graficoAdmin{width:100%; height:180px;}
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 <script>
+/* ===================== FIREBASE ===================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyAJIxL-hwtgK_YidcH3agPX1sUlwY6Oy8I",
+  authDomain: "urna--eletronica.firebaseapp.com",
+  databaseURL: "https://urna--eletronica-default-rtdb.firebaseio.com",
+  projectId: "urna--eletronica",
+  storageBucket: "urna--eletronica.firebasestorage.app",
+  messagingSenderId: "298849713485",
+  appId: "1:298849713485:web:c12a97f45e881bb5bc8b04",
+  measurementId: "G-6Z2P6JQPB8"
+};
+firebase.initializeApp(firebaseConfig);
+const dbRef = firebase.database().ref("urna_estado_v1");
+let firebaseConectado = false;
+
 /* ===================== MODAL PRÓPRIO ===================== */
 /* Substitui alert()/confirm()/prompt() do navegador, que não funcionam de forma confiável
    em PWA instalado com display "fullscreen" nem em apps empacotados (TWA/PWABuilder). */
@@ -492,11 +509,11 @@ const DEFAULT_STATE = {
   pinHash:null // definido no primeiro uso (default 1234)
 };
 
-let estado = carregarEstado();
+let estado = carregarEstadoLocal();
 let entradaAtual = "";
 let liberado = false;
 
-function carregarEstado(){
+function carregarEstadoLocal(){
   try{
     const raw = localStorage.getItem("urna_estado_v1");
     if(!raw) return JSON.parse(JSON.stringify(DEFAULT_STATE));
@@ -507,9 +524,26 @@ function carregarEstado(){
     return JSON.parse(JSON.stringify(DEFAULT_STATE));
   }
 }
+
 function salvarEstado(){
+  // guarda uma cópia local (cache offline) e envia pro Firebase pra sincronizar com os outros aparelhos
   localStorage.setItem("urna_estado_v1", JSON.stringify(estado));
+  dbRef.set(estado).catch(e=>console.error("Erro ao sincronizar com Firebase:", e));
 }
+
+// Ouve em tempo real qualquer mudança no banco (votos de outros aparelhos, configs do admin, etc.)
+dbRef.on("value", (snapshot)=>{
+  const remoto = snapshot.val();
+  if(remoto){
+    estado = Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), remoto);
+  } else if(!firebaseConectado){
+    // banco vazio (primeira vez) -> envia o estado atual como ponto de partida
+    dbRef.set(estado);
+  }
+  firebaseConectado = true;
+  localStorage.setItem("urna_estado_v1", JSON.stringify(estado));
+  atualizarTelaEspera();
+});
 
 async function sha256(texto){
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(texto));

@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Urna de Votação Estudantil</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B0F14">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+:root{
+  --bg:#0B0F14;
+  --panel:#161B22;
+  --panel2:#1C2330;
+  --lcd:#39FF14;
+  --lcd-dim:#1f7a0a;
+  --accent:#00FFAA;
+  --green:#00C853;
+  --red:#FF5252;
+  --orange:#FFB300;
+  --text:#E6EDF3;
+  --muted:#7d8a99;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+html,body{height:100%;margin:0;}
+body{
+  background:radial-gradient(ellipse at top, #11161d 0%, #0B0F14 60%);
+  color:var(--text);
+  font-family:'Courier New', Consolas, monospace;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:100vh;
+  overflow:hidden;
+}
+.screen{display:none; width:100%; height:100%; align-items:center; justify-content:center;}
+.screen.active{display:flex;}
+
+/* ---------- STANDBY ---------- */
+#tela-espera{flex-direction:column; gap:28px; text-align:center; padding:24px;}
+.logo-urna{
+  width:120px;height:120px;border-radius:24px;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 40px rgba(0,255,170,.25);
+  overflow:hidden;
+}
+#tela-espera h1{font-size:clamp(22px,4vw,34px); margin:0; letter-spacing:1px; font-weight:700;}
+#tela-espera p{color:var(--muted); margin:0; font-size:15px;}
+.btn-iniciar{
+  margin-top:10px;
+  padding:22px 48px;
+  font-size:20px;
+  font-weight:700;
+  letter-spacing:1px;
+  border-radius:14px;
+  border:none;
+  background:var(--green);
+  color:#04210f;
+  cursor:pointer;
+  box-shadow:0 8px 0 #00712b, 0 12px 24px rgba(0,0,0,.4);
+}
+.btn-iniciar:active{transform:translateY(6px); box-shadow:0 2px 0 #00712b;}
+.admin-corner{
+  position:fixed; bottom:14px; right:14px; width:46px;height:46px;
+  opacity:0.18; background:transparent; border:none; color:var(--muted);
+}
+.acompanhar-corner{
+  position:fixed; top:14px; left:14px;
+  display:flex; align-items:center; gap:6px;
+  background:var(--panel); border:1px solid var(--accent); color:var(--accent);
+  padding:10px 14px; border-radius:12px; font-size:13px; font-weight:700;
+  font-family:'Courier New', Consolas, monospace; cursor:pointer;
+}
+.contador-mini{font-size:13px; color:var(--muted); margin-top:18px;}
+
+/* ---------- URNA (frame for voting + confirm screens) ---------- */
+.urna-frame{
+  width:min(94vw, 480px);
+  background:linear-gradient(180deg,#1a1f27,#11151b);
+  border-radius:28px;
+  padding:18px;
+  border:1px solid #2a313c;
+  box-shadow:0 20px 60px rgba(0,0,0,.6), inset 0 0 0 1px #000;
+}
+.lcd{
+  background:#04140c;
+  border:2px solid #0c2e1a;
+  border-radius:10px;
+  padding:18px 16px;
+  min-height:150px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+  box-shadow:inset 0 0 30px rgba(0,0,0,.6);
+}
+.lcd-label{color:var(--lcd-dim); font-size:13px; letter-spacing:2px; margin-bottom:8px;}
+.lcd-numero{color:var(--lcd); font-size:54px; font-weight:700; letter-spacing:10px; min-height:64px; text-shadow:0 0 12px rgba(57,255,20,.5);}
+.lcd-nome{color:var(--lcd); font-size:18px; margin-top:6px; min-height:24px; letter-spacing:1px;}
+.lcd-status{color:var(--lcd); font-size:15px; margin-top:10px; min-height:20px;}
+
+.teclado{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:10px;
+  margin-top:16px;
+}
+.tecla{
+  padding:18px 0;
+  font-size:22px;
+  font-weight:700;
+  border-radius:10px;
+  border:none;
+  background:var(--panel2);
+  color:var(--text);
+  box-shadow:0 4px 0 #0a0e13;
+}
+.tecla:active{transform:translateY(3px); box-shadow:0 1px 0 #0a0e13;}
+.linha-acoes{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;}
+.tecla-branco{background:#3a4250; color:var(--text); grid-column:span 2;}
+.tecla-corrige{background:var(--orange); color:#332100;}
+.tecla-confirma{background:var(--green); color:#04210f;}
+
+/* ---------- RESULTADOS ---------- */
+#tela-resultados{flex-direction:column; padding:18px; width:100%; height:100%; overflow-y:auto; align-items:stretch;}
+.res-wrap{max-width:640px; margin:0 auto; width:100%; padding-bottom:30px;}
+.res-header{text-align:center; margin:18px 0 10px;}
+.res-header h2{margin:0; font-size:clamp(20px,3.6vw,28px);}
+.res-header span{color:var(--muted); font-size:13px;}
+.vencedor-card{
+  background:linear-gradient(135deg, rgba(0,255,170,.12), rgba(0,255,170,.02));
+  border:1px solid var(--accent);
+  border-radius:16px;
+  padding:18px;
+  text-align:center;
+  margin:14px 0;
+}
+.vencedor-card .titulo{color:var(--accent); font-size:13px; letter-spacing:2px;}
+.vencedor-card .nome{font-size:26px; font-weight:700; margin-top:6px;}
+.vencedor-card .votos{color:var(--muted); margin-top:4px; font-size:14px;}
+.barra-item{margin:14px 0;}
+.barra-topo{display:flex; justify-content:space-between; font-size:14px; margin-bottom:6px;}
+.barra-fundo{background:#1a1f27; border-radius:8px; height:22px; overflow:hidden;}
+.barra-cheia{height:100%; border-radius:8px; transition:width .8s ease;}
+.res-stats{display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;}
+.res-stat{flex:1; min-width:100px; background:var(--panel); border-radius:12px; padding:12px; text-align:center;}
+.res-stat .num{font-size:20px; font-weight:700;}
+.res-stat .lbl{font-size:11px; color:var(--muted); margin-top:2px;}
+.res-acoes{display:flex; gap:10px; margin-top:22px; flex-wrap:wrap;}
+.btn-sec{flex:1; min-width:140px; padding:14px; border-radius:10px; border:1px solid #2a313c; background:var(--panel); color:var(--text); font-size:14px; font-weight:600;}
+.btn-perigo{border-color:var(--red); color:var(--red);}
+.btn-primario{background:var(--green); color:#04210f; border:none;}
+
+/* ---------- ADMIN LOGIN ---------- */
+#tela-admin-login{flex-direction:column; gap:16px; padding:24px;}
+.login-card{width:min(90vw,340px); text-align:center;}
+.login-card .icone{font-size:40px; margin-bottom:6px;}
+.login-card h2{margin:0 0 4px; font-size:18px;}
+.login-card p{color:var(--muted); font-size:13px; margin:0 0 18px;}
+#senhaAdmin{
+  width:100%; padding:16px; border-radius:10px; border:1px solid #2a313c;
+  background:#0d1117; color:var(--text); font-family:inherit; font-size:18px;
+  text-align:center; letter-spacing:2px;
+}
+#senhaAdmin:focus{outline:none; border-color:var(--accent);}
+.login-erro{color:var(--red); font-size:13px; min-height:18px; margin-top:8px;}
+
+/* ---------- ADMIN PAINEL ---------- */
+#tela-admin{align-items:flex-start; padding:18px; overflow-y:auto;}
+.admin-wrap{max-width:640px; margin:0 auto; width:100%; padding-bottom:30px;}
+.admin-topo{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
+.admin-topo h2{margin:0; font-size:20px;}
+.fechar-btn{background:none; border:1px solid #2a313c; color:var(--muted); border-radius:8px; padding:8px 14px;}
+.card{background:var(--panel); border-radius:14px; padding:16px; margin-bottom:14px;}
+.card h3{margin:0 0 10px; font-size:14px; color:var(--accent); letter-spacing:1px;}
+.campo{margin-bottom:10px;}
+.campo label{display:block; font-size:12px; color:var(--muted); margin-bottom:4px;}
+.campo input{width:100%; padding:10px; border-radius:8px; border:1px solid #2a313c; background:#0d1117; color:var(--text); font-family:inherit;}
+.chapa-row{display:flex; gap:8px; align-items:center; margin-bottom:8px;}
+.chapa-row .num{width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0;}
+.cor-pick{width:34px; height:34px; border-radius:8px; border:none; padding:0; flex-shrink:0;}
+canvas#graficoAdmin{width:100%; height:180px;}
+
+/* ---------- ACOMPANHAR VOTOS (painel público com senha) ---------- */
+.acomp-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px;}
+.acomp-top h2{margin:0; font-size:19px;}
+.acomp-top .escola-sub{color:var(--muted); font-size:12px; margin-top:3px;}
+.live-badge{display:flex; align-items:center; gap:6px; font-size:11px; color:var(--accent); background:rgba(0,255,170,.08); border:1px solid var(--accent); padding:6px 10px; border-radius:20px; white-space:nowrap; flex-shrink:0;}
+.live-dot{width:7px; height:7px; border-radius:50%; background:var(--accent); animation:pulse 1.4s infinite;}
+@keyframes pulse{0%{opacity:1;} 50%{opacity:.25;} 100%{opacity:1;}}
+
+.acomp-hero{text-align:center; margin:18px 0 24px; padding:20px; background:var(--panel); border-radius:16px; border:1px solid #20262e;}
+.acomp-hero .num{font-size:46px; font-weight:800; letter-spacing:1px; color:var(--text);}
+.acomp-hero .lbl{color:var(--muted); font-size:12px; letter-spacing:1px; margin-top:2px; text-transform:uppercase;}
+.acomp-hero .hora{color:var(--muted); font-size:11px; margin-top:10px;}
+
+.ranking-titulo{font-size:12px; color:var(--muted); letter-spacing:1.5px; margin:0 0 10px; text-transform:uppercase;}
+.ranking-item{display:flex; align-items:center; gap:12px; background:var(--panel); border-radius:14px; padding:14px; margin-bottom:10px; border:1px solid #20262e;}
+.ranking-item.lider{border-color:var(--accent); background:linear-gradient(135deg, rgba(0,255,170,.10), var(--panel));}
+.ranking-pos{width:30px; height:30px; border-radius:9px; background:#0d1117; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; flex-shrink:0;}
+.ranking-info{flex:1; min-width:0;}
+.ranking-info .nome-linha{display:flex; justify-content:space-between; gap:8px; font-size:14px; font-weight:600; margin-bottom:7px;}
+.ranking-info .nome-linha .pct{color:var(--muted); font-weight:400; font-size:13px; flex-shrink:0;}
+.ranking-barra-fundo{background:#0d1117; border-radius:6px; height:9px; overflow:hidden;}
+.ranking-barra-cheia{height:100%; border-radius:6px; transition:width .6s ease;}
+.ranking-votos{flex-shrink:0; text-align:right; font-size:13px; color:var(--muted); min-width:48px;}
+
+.acomp-footer{display:flex; gap:10px; margin-top:18px;}
+
+/* ---------- MODAL PRÓPRIO (substitui alert/confirm/prompt do navegador) ---------- */
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.6);
+  display:none; align-items:center; justify-content:center;
+  z-index:9999; padding:20px;
+}
+.modal-box{
+  background:var(--panel); border:1px solid #2a313c; border-radius:16px;
+  padding:22px; max-width:340px; width:100%; text-align:center;
+  box-shadow:0 20px 50px rgba(0,0,0,.5);
+}
+.modal-box p{margin:0 0 16px; font-size:15px; line-height:1.4;}
+.modal-box input{
+  width:100%; padding:12px; border-radius:8px; border:1px solid #2a313c;
+  background:#0d1117; color:var(--text); font-family:inherit; text-align:center;
+  margin-bottom:16px; letter-spacing:1px;
+}
+.modal-botoes{display:flex; gap:10px;}
+.modal-botoes button{flex:1; padding:12px; border-radius:10px; border:none; font-weight:600; font-family:inherit; font-size:14px;}
+.modal-btn-cancelar{background:#2a313c; color:var(--text);}
+.modal-btn-confirmar{background:var(--green); color:#04210f;}
+</style>
+</head>
+<body>
+
+<!-- TELA DE ESPERA -->
+<div class="screen active" id="tela-espera">
+  <button class="acompanhar-corner" onclick="solicitarSenhaAcompanhar()">📊 Ver votos</button>
+  <div class="logo-urna"><img src="icons/icon-192.png" style="width:84px;height:84px;border-radius:16px;object-fit:cover;"></div>
+  <h1 id="tituloEleicao">Eleição Estudantil</h1>
+  <p id="subtituloEleicao">Toque em "Liberar voto" para o próximo eleitor</p>
+  <button class="btn-iniciar" onclick="liberarVoto()">LIBERAR VOTO</button>
+  <div class="contador-mini" id="contadorMini">0 votos registrados</div>
+  <button class="admin-corner" onclick="abrirAdminLogin()">⚙</button>
+</div>
+
+<!-- TELA DE VOTACAO -->
+<div class="screen" id="tela-votacao">
+  <div class="urna-frame">
+    <div class="lcd">
+      <div class="lcd-label">DIGITE O NÚMERO DA CHAPA</div>
+      <div class="lcd-numero" id="lcdNumero">&nbsp;</div>
+      <div class="lcd-nome" id="lcdNome">&nbsp;</div>
+      <div class="lcd-status" id="lcdStatus">&nbsp;</div>
+    </div>
+    <div class="teclado">
+      <button class="tecla" onclick="digitar(1)">1</button>
+      <button class="tecla" onclick="digitar(2)">2</button>
+      <button class="tecla" onclick="digitar(3)">3</button>
+      <button class="tecla" onclick="digitar(4)">4</button>
+      <button class="tecla" onclick="digitar(5)">5</button>
+      <button class="tecla" onclick="digitar(6)">6</button>
+      <button class="tecla" onclick="digitar(7)">7</button>
+      <button class="tecla" onclick="digitar(8)">8</button>
+      <button class="tecla" onclick="digitar(9)">9</button>
+      <div></div>
+      <button class="tecla" onclick="digitar(0)">0</button>
+      <div></div>
+    </div>
+    <div class="linha-acoes">
+      <button class="tecla tecla-corrige" onclick="corrigir()">CORRIGE</button>
+      <button class="tecla tecla-confirma" onclick="confirmar()">CONFIRMA</button>
+    </div>
+    <div class="linha-acoes">
+      <button class="tecla tecla-branco" onclick="votoBranco()">VOTAR EM BRANCO</button>
+    </div>
+  </div>
+</div>
+
+<!-- TELA FIM (apos confirmar voto) -->
+<div class="screen" id="tela-fim">
+  <div class="urna-frame">
+    <div class="lcd">
+      <div class="lcd-label" id="fimLabel">FIM</div>
+      <div class="lcd-numero" style="font-size:34px;" id="fimTexto">VOTO CONFIRMADO</div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN ADMIN -->
+<div class="screen" id="tela-admin-login">
+  <div class="login-card">
+    <div class="icone">🔐</div>
+    <h2>Perfil do administrador</h2>
+    <p>Digite a palavra-chave para acessar</p>
+    <input type="password" id="senhaAdmin" placeholder="Palavra-chave" autocomplete="off" onkeydown="if(event.key==='Enter') validarSenhaAdmin()">
+    <div class="login-erro" id="loginErro">&nbsp;</div>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button class="btn-sec" onclick="fecharAdminLogin()">Voltar</button>
+      <button class="btn-sec btn-primario" onclick="validarSenhaAdmin()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAINEL ADMIN -->
+<div class="screen" id="tela-admin">
+  <div class="admin-wrap">
+    <div class="admin-topo">
+      <h2>Perfil do administrador</h2>
+      <button class="fechar-btn" onclick="fecharAdmin()">Fechar</button>
+    </div>
+
+    <div class="card" id="cardEncerrar">
+      <h3>VOTAÇÃO</h3>
+      <p style="font-size:13px; color:var(--muted); margin:0 0 10px;" id="statusVotacaoTxt">Votação aberta.</p>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-sec btn-primario" id="btnAbrirFechar" onclick="alternarVotacao()">Encerrar votação</button>
+        <button class="btn-sec btn-perigo" onclick="confirmarZerar()">Zerar urna</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>RESULTADO EM TEMPO REAL</h3>
+      <canvas id="graficoAdmin"></canvas>
+      <div id="legendaAdmin" style="display:flex; gap:14px; margin-top:8px; flex-wrap:wrap; font-size:12px;"></div>
+      <div class="res-stats" style="margin-top:14px;">
+        <div class="res-stat"><div class="num" id="adminBrancos">0</div><div class="lbl">Brancos</div></div>
+        <div class="res-stat"><div class="num" id="adminNulos">0</div><div class="lbl">Nulos</div></div>
+        <div class="res-stat"><div class="num" id="adminTotal">0</div><div class="lbl">Total</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>CONFIGURAR ELEIÇÃO</h3>
+      <div class="campo">
+        <label>Nome da eleição</label>
+        <input type="text" id="cfgTitulo" placeholder="Eleição Estudantil 2026">
+      </div>
+      <div class="campo">
+        <label>Escola / observação (linha abaixo do título)</label>
+        <input type="text" id="cfgSub" placeholder="CETI Dariana">
+      </div>
+      <button class="btn-sec btn-primario" onclick="salvarConfig()">Salvar</button>
+    </div>
+
+    <div class="card">
+      <h3>CHAPAS</h3>
+      <div id="chapasEditor"></div>
+      <div style="display:flex; gap:10px; margin-top:6px;">
+        <button class="btn-sec" onclick="adicionarChapa()">+ Adicionar chapa</button>
+        <button class="btn-sec btn-primario" onclick="salvarChapas()">Salvar chapas</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>SEGURANÇA</h3>
+      <p style="font-size:12px; color:var(--muted); margin:0 0 10px;">Palavra-chave padrão: <b>Atlanta</b>. Você pode trocá-la abaixo.</p>
+      <div class="campo">
+        <label>Nova palavra-chave do administrador</label>
+        <input type="text" id="cfgPin" placeholder="Ex: Atlanta2026">
+      </div>
+      <button class="btn-sec btn-primario" onclick="salvarPin()">Salvar palavra-chave</button>
+    </div>
+
+    <div class="card">
+      <h3>DADOS</h3>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn-sec" onclick="exportarResultados()">Exportar resultado (.json)</button>
+        <button class="btn-sec" onclick="abrirResultadosFinal()">Ver tela de resultado final</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ACOMPANHAR VOTOS (painel com senha, atualiza em tempo real) -->
+<div class="screen" id="tela-acompanhar">
+  <div class="res-wrap">
+    <div class="acomp-top">
+      <div class="titulo-wrap">
+        <h2 id="acompTitulo">Acompanhar votos</h2>
+        <div class="escola-sub" id="acompSub">Apuração parcial</div>
+      </div>
+      <div class="live-badge"><span class="live-dot"></span> EM TEMPO REAL</div>
+    </div>
+
+    <div class="acomp-hero">
+      <div class="num" id="acompTotal">0</div>
+      <div class="lbl">Votos registrados</div>
+      <div class="hora" id="acompHora">—</div>
+    </div>
+
+    <p class="ranking-titulo">Apuração por chapa</p>
+    <div id="acompRanking"></div>
+
+    <div class="acomp-footer">
+      <div class="footer-pill"><div class="num" id="acompBrancos">0</div><div class="lbl">Brancos</div></div>
+      <div class="footer-pill"><div class="num" id="acompNulos">0</div><div class="lbl">Nulos</div></div>
+    </div>
+
+    <div class="res-acoes">
+      <button class="btn-sec btn-primario" onclick="fecharAcompanhar()">Voltar</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTADO FINAL -->
+<div class="screen" id="tela-resultados">
+  <div class="res-wrap">
+    <div class="res-header">
+      <h2 id="resTitulo">Resultado da Eleição</h2>
+      <span id="resSub">Votação encerrada</span>
+    </div>
+    <div class="vencedor-card">
+      <div class="titulo">VENCEDOR(A)</div>
+      <div class="nome" id="resVencedorNome">—</div>
+      <div class="votos" id="resVencedorVotos">—</div>
+    </div>
+    <div id="resBarras"></div>
+    <div class="res-stats">
+      <div class="res-stat"><div class="num" id="resBrancos">0</div><div class="lbl">Brancos</div></div>
+      <div class="res-stat"><div class="num" id="resNulos">0</div><div class="lbl">Nulos</div></div>
+      <div class="res-stat"><div class="num" id="resTotal">0</div><div class="lbl">Total de votos</div></div>
+    </div>
+    <div class="res-acoes">
+      <button class="btn-sec" onclick="fecharResultadoFinal()">Voltar ao painel</button>
+      <button class="btn-sec btn-perigo" onclick="confirmarZerar()">Zerar urna para nova eleição</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PRÓPRIO (substitui alert/confirm/prompt do navegador, que não funcionam em PWA fullscreen/instalado) -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <p id="modalMensagem"></p>
+    <input type="text" id="modalInput" style="display:none;">
+    <div class="modal-botoes">
+      <button class="modal-btn-cancelar" id="modalCancelar">Cancelar</button>
+      <button class="modal-btn-confirmar" id="modalConfirmar">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================== MODAL PRÓPRIO ===================== */
+/* Substitui alert()/confirm()/prompt() do navegador, que não funcionam de forma confiável
+   em PWA instalado com display "fullscreen" nem em apps empacotados (TWA/PWABuilder). */
+let _modalResolve = null;
+function _abrirModal(mensagem, tipo, placeholder){
+  return new Promise((resolve)=>{
+    _modalResolve = resolve;
+    document.getElementById("modalMensagem").textContent = mensagem;
+    const input = document.getElementById("modalInput");
+    if(tipo==="prompt"){
+      input.style.display = "block";
+      input.value = "";
+      input.placeholder = placeholder || "";
+    } else {
+      input.style.display = "none";
+    }
+    document.getElementById("modalCancelar").style.display = (tipo==="alert") ? "none" : "inline-block";
+    document.getElementById("modalOverlay").style.display = "flex";
+    if(tipo==="prompt") setTimeout(()=>input.focus(), 80);
+  });
+}
+function _fecharModal(confirmado){
+  document.getElementById("modalOverlay").style.display = "none";
+  const input = document.getElementById("modalInput");
+  const resolve = _modalResolve;
+  _modalResolve = null;
+  if(!resolve) return;
+  if(confirmado && input.style.display!=="none"){
+    resolve(input.value);
+  } else {
+    resolve(confirmado);
+  }
+}
+function avisar(mensagem){ return _abrirModal(mensagem, "alert"); }
+function perguntar(mensagem){ return _abrirModal(mensagem, "confirm"); }
+function pedirTexto(mensagem, placeholder){ return _abrirModal(mensagem, "prompt", placeholder); }
+
+/* ===================== ESTADO ===================== */
+const DEFAULT_STATE = {
+  config:{ titulo:"Eleição Estudantil", sub:"Toque em \"Liberar voto\" para o próximo eleitor" },
+  chapas:[
+    {numero:1, nome:"Chapa 1", cor:"#00C853", votos:0},
+    {numero:2, nome:"Chapa 2", cor:"#2979FF", votos:0},
+    {numero:3, nome:"Chapa 3", cor:"#FFB300", votos:0}
+  ],
+  brancos:0,
+  nulos:0,
+  aberta:true,
+  pinHash:null // definido no primeiro uso (default 1234)
+};
+
+let estado = carregarEstado();
+let entradaAtual = "";
+let liberado = false;
+
+function carregarEstado(){
+  try{
+    const raw = localStorage.getItem("urna_estado_v1");
+    if(!raw) return JSON.parse(JSON.stringify(DEFAULT_STATE));
+    const parsed = JSON.parse(raw);
+    // merge defensivo
+    return Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), parsed);
+  }catch(e){
+    return JSON.parse(JSON.stringify(DEFAULT_STATE));
+  }
+}
+function salvarEstado(){
+  localStorage.setItem("urna_estado_v1", JSON.stringify(estado));
+}
+
+async function sha256(texto){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(texto));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+/* ===================== NAVEGAÇÃO ===================== */
+function mostrarTela(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+function atualizarTelaEspera(){
+  document.getElementById("tituloEleicao").textContent = estado.config.titulo;
+  document.getElementById("subtituloEleicao").textContent = estado.aberta ? estado.config.sub : "Votação encerrada";
+  const total = totalVotos();
+  document.getElementById("contadorMini").textContent = total+" voto"+(total===1?"":"s")+" registrado"+(total===1?"":"s");
+}
+
+function totalVotos(){
+  return estado.chapas.reduce((s,c)=>s+c.votos,0) + estado.brancos + estado.nulos;
+}
+
+/* ===================== FLUXO DE VOTO ===================== */
+function liberarVoto(){
+  if(!estado.aberta){
+    avisar("A votação está encerrada. Abra o perfil do administrador para reabrir, se necessário.");
+    return;
+  }
+  liberado = true;
+  entradaAtual = "";
+  tocarSomLiberar();
+  atualizarLcd();
+  mostrarTela("tela-votacao");
+}
+
+function atualizarLcd(){
+  document.getElementById("lcdNumero").textContent = entradaAtual || "\u00A0";
+  const chapa = estado.chapas.find(c=>String(c.numero)===entradaAtual);
+  document.getElementById("lcdNome").textContent = chapa ? chapa.nome.toUpperCase() : "\u00A0";
+  document.getElementById("lcdStatus").textContent = "\u00A0";
+}
+
+function digitar(n){
+  if(entradaAtual.length>=2) return;
+  entradaAtual += String(n);
+  atualizarLcd();
+}
+function corrigir(){
+  entradaAtual = "";
+  atualizarLcd();
+}
+
+function votoBranco(){
+  estado.brancos++;
+  salvarEstado();
+  finalizarVoto("BRANCO", "VOTO EM BRANCO");
+}
+
+function confirmar(){
+  if(entradaAtual===""){
+    votoBranco();
+    return;
+  }
+  const chapa = estado.chapas.find(c=>String(c.numero)===entradaAtual);
+  if(chapa){
+    chapa.votos++;
+    salvarEstado();
+    finalizarVoto("CONFIRMADO", chapa.nome.toUpperCase());
+  } else {
+    estado.nulos++;
+    salvarEstado();
+    finalizarVoto("NULO", "VOTO NULO");
+  }
+}
+
+function finalizarVoto(label, texto){
+  document.getElementById("fimLabel").textContent = label;
+  document.getElementById("fimTexto").textContent = texto;
+  mostrarTela("tela-fim");
+  tocarSomUrna();
+  entradaAtual = "";
+  setTimeout(()=>{
+    atualizarTelaEspera();
+    mostrarTela("tela-espera");
+  }, 2200);
+}
+
+/* ===================== SOM DA URNA ELETRÔNICA ===================== */
+let audioCtx;
+function _getCtx(){
+  audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+  // Resume context caso esteja suspenso (política autoplay de navegadores)
+  if(audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+
+/* Som ao LIBERAR o voto — "bip" único grave, igual ao da urna brasileira ao chamar o eleitor */
+function tocarSomLiberar(){
+  try{
+    const ctx = _getCtx();
+    const t0 = ctx.currentTime;
+    _beep(ctx, 880, t0,      0.55, 0.3);  // bipe longo grave
+    _beep(ctx, 880, t0+0.65, 0.20, 0.3);  // bipe curto
+  }catch(e){ /* audio indisponível */ }
+}
+
+/* Som ao CONFIRMAR o voto — Si5, Re#6, Fa#6 repetido 2x rapidamente */
+function tocarSomUrna(){
+  try{
+    const ctx = _getCtx();
+    const t0 = ctx.currentTime;
+    const seq = [1000, 1250, 1500];
+    const dur = 0.10;
+    const gap = 0.12;
+    const pausa = 0.10; // pausa entre as 2 repetições
+    seq.forEach((freq, i) => _beep(ctx, freq, t0 + i * gap, dur, 0.6));
+    const offset = seq.length * gap + pausa;
+    seq.forEach((freq, i) => _beep(ctx, freq, t0 + offset + i * gap, dur, 0.6));
+  }catch(e){ /* audio indisponível */ }
+}
+
+function _beep(ctx, freq, startTime, duration, volume){
+  const osc  = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "square";
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0, startTime);
+  gain.gain.linearRampToValueAtTime(volume, startTime + 0.015);
+  gain.gain.setValueAtTime(volume, startTime + duration - 0.04);
+  gain.gain.linearRampToValueAtTime(0, startTime + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(startTime);
+  osc.stop(startTime + duration + 0.02);
+}
+
+/* ===================== ADMIN: LOGIN ===================== */
+function abrirAdminLogin(){
+  document.getElementById("senhaAdmin").value = "";
+  document.getElementById("loginErro").innerHTML = "&nbsp;";
+  mostrarTela("tela-admin-login");
+  setTimeout(()=>document.getElementById("senhaAdmin").focus(), 100);
+}
+function fecharAdminLogin(){ mostrarTela("tela-espera"); }
+
+async function validarSenhaAdmin(){
+  const valor = document.getElementById("senhaAdmin").value.trim();
+  if(!valor){ return; }
+  const hash = await sha256(valor.toLowerCase());
+  let ok;
+  if(!estado.pinHash){
+    ok = valor.toLowerCase() === "atlanta"; // palavra-chave padrão
+  } else {
+    ok = hash === estado.pinHash;
+  }
+  if(ok){
+    document.getElementById("loginErro").innerHTML = "&nbsp;";
+    abrirAdmin();
+  } else {
+    document.getElementById("loginErro").textContent = "Palavra-chave incorreta.";
+    document.getElementById("senhaAdmin").value = "";
+    document.getElementById("senhaAdmin").focus();
+  }
+}
+
+/* ===================== ADMIN: PAINEL ===================== */
+function abrirAdmin(){
+  preencherFormConfig();
+  preencherChapasEditor();
+  atualizarAdminStats();
+  mostrarTela("tela-admin");
+}
+function fecharAdmin(){
+  atualizarTelaEspera();
+  mostrarTela("tela-espera");
+}
+
+function preencherFormConfig(){
+  document.getElementById("cfgTitulo").value = estado.config.titulo;
+  document.getElementById("cfgSub").value = estado.config.sub;
+  document.getElementById("statusVotacaoTxt").textContent = estado.aberta ? "Votação aberta." : "Votação ENCERRADA.";
+  document.getElementById("btnAbrirFechar").textContent = estado.aberta ? "Encerrar votação" : "Reabrir votação";
+}
+function salvarConfig(){
+  estado.config.titulo = document.getElementById("cfgTitulo").value.trim() || DEFAULT_STATE.config.titulo;
+  estado.config.sub = document.getElementById("cfgSub").value.trim() || DEFAULT_STATE.config.sub;
+  salvarEstado();
+  avisar("Configuração salva.");
+}
+
+const PALETA_CORES = ["#00C853","#2979FF","#FFB300","#E040FB","#FF5252","#00BCD4","#FF9100","#76FF03"];
+
+function preencherChapasEditor(){
+  const cont = document.getElementById("chapasEditor");
+  cont.innerHTML = "";
+  estado.chapas.forEach((c,idx)=>{
+    const row = document.createElement("div");
+    row.className = "chapa-row";
+    row.innerHTML = `
+      <input type="number" data-idx="${idx}" class="campo-numero" value="${c.numero}" style="width:54px; padding:8px; border-radius:8px; border:1px solid ${c.cor}; background:#0d1117; color:${c.cor}; font-family:inherit; font-weight:700; text-align:center;">
+      <input type="text" data-idx="${idx}" class="campo-nome" value="${c.nome.replace(/"/g,'&quot;')}" placeholder="Nome da chapa" style="flex:1; padding:8px; border-radius:8px; border:1px solid #2a313c; background:#0d1117; color:var(--text); font-family:inherit;">
+      <input type="color" data-idx="${idx}" class="cor-pick campo-cor" value="${c.cor}">
+      <button data-idx="${idx}" class="btn-sec btn-perigo btn-excluir-chapa" style="flex:0 0 auto; padding:8px 12px;" title="Excluir chapa">✕</button>
+    `;
+    cont.appendChild(row);
+  });
+  document.querySelectorAll(".btn-excluir-chapa").forEach(btn=>{
+    btn.onclick = ()=> excluirChapa(+btn.dataset.idx);
+  });
+  if(estado.chapas.length===0){
+    cont.innerHTML = '<p style="color:var(--muted); font-size:13px;">Nenhuma chapa cadastrada. Clique em "Adicionar chapa".</p>';
+  }
+}
+
+function adicionarChapa(){
+  const numerosUsados = estado.chapas.map(c=>c.numero);
+  let novoNumero = 1;
+  while(numerosUsados.includes(novoNumero)) novoNumero++;
+  const cor = PALETA_CORES[estado.chapas.length % PALETA_CORES.length];
+  estado.chapas.push({numero: novoNumero, nome: "Chapa "+novoNumero, cor: cor, votos: 0});
+  salvarEstado();
+  preencherChapasEditor();
+  atualizarAdminStats();
+}
+
+async function excluirChapa(idx){
+  const c = estado.chapas[idx];
+  if(!c) return;
+  const aviso = c.votos>0
+    ? `A chapa "${c.nome}" já tem ${c.votos} voto(s). Excluir mesmo assim? Os votos dela serão removidos do total.`
+    : `Excluir a chapa "${c.nome}"?`;
+  const ok = await perguntar(aviso);
+  if(ok){
+    estado.chapas.splice(idx,1);
+    salvarEstado();
+    preencherChapasEditor();
+    atualizarAdminStats();
+  }
+}
+
+async function salvarChapas(){
+  const nomes = document.querySelectorAll(".campo-nome");
+  const numeros = document.querySelectorAll(".campo-numero");
+  const cores = document.querySelectorAll(".campo-cor");
+
+  const novosNumeros = Array.from(numeros).map(inp=>parseInt(inp.value,10));
+  const temDuplicado = novosNumeros.some((n,i)=>novosNumeros.indexOf(n)!==i);
+  if(temDuplicado){
+    await avisar("Há números de chapa repetidos. Cada chapa precisa de um número único.");
+    return;
+  }
+  if(novosNumeros.some(n=>isNaN(n) || n<0)){
+    await avisar("Número de chapa inválido.");
+    return;
+  }
+
+  nomes.forEach(inp=>{
+    const idx = +inp.dataset.idx;
+    estado.chapas[idx].nome = inp.value.trim() || ("Chapa "+estado.chapas[idx].numero);
+  });
+  numeros.forEach(inp=>{
+    const idx = +inp.dataset.idx;
+    estado.chapas[idx].numero = parseInt(inp.value,10);
+  });
+  cores.forEach(inp=>{
+    const idx = +inp.dataset.idx;
+    estado.chapas[idx].cor = inp.value;
+  });
+  salvarEstado();
+  preencherChapasEditor();
+  atualizarAdminStats();
+  await avisar("Chapas atualizadas.");
+}
+
+async function salvarPin(){
+  const v = document.getElementById("cfgPin").value.trim();
+  if(v.length<4){ await avisar("Use ao menos 4 caracteres."); return; }
+  estado.pinHash = await sha256(v.toLowerCase());
+  salvarEstado();
+  document.getElementById("cfgPin").value="";
+  await avisar("Palavra-chave atualizada.");
+}
+
+function alternarVotacao(){
+  estado.aberta = !estado.aberta;
+  salvarEstado();
+  preencherFormConfig();
+  if(!estado.aberta){
+    abrirResultadosFinal();
+  }
+}
+
+async function confirmarZerar(){
+  const txt = await pedirTexto('Esta ação apaga todos os votos. Digite ZERAR para confirmar:', 'Digite ZERAR');
+  if(txt && txt.trim().toUpperCase()==="ZERAR"){
+    estado.chapas.forEach(c=>c.votos=0);
+    estado.brancos=0; estado.nulos=0; estado.aberta=true;
+    salvarEstado();
+    preencherFormConfig();
+    atualizarAdminStats();
+    atualizarTelaEspera();
+    await avisar("Urna zerada.");
+    mostrarTela("tela-admin");
+  }
+}
+
+function atualizarAdminStats(){
+  document.getElementById("adminBrancos").textContent = estado.brancos;
+  document.getElementById("adminNulos").textContent = estado.nulos;
+  document.getElementById("adminTotal").textContent = totalVotos();
+  desenharGrafico("graficoAdmin", "legendaAdmin");
+}
+
+/* ===================== GRÁFICO (canvas puro, sem libs) ===================== */
+function desenharGrafico(canvasId, legendaId){
+  const canvas = document.getElementById(canvasId);
+  const dpr = window.devicePixelRatio||1;
+  const w = canvas.clientWidth || 300;
+  const h = 180;
+  canvas.width = w*dpr; canvas.height = h*dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+
+  const max = Math.max(1, ...estado.chapas.map(c=>c.votos));
+  const barW = w/(estado.chapas.length*2);
+  const baseY = h-24;
+
+  estado.chapas.forEach((c,i)=>{
+    const x = (i*2+0.5)*barW;
+    const barH = (c.votos/max) * (h-50);
+    ctx.fillStyle = c.cor;
+    ctx.beginPath();
+    ctx.roundRect(x, baseY-barH, barW, barH, 6);
+    ctx.fill();
+    ctx.fillStyle = "#E6EDF3";
+    ctx.font = "12px Courier New";
+    ctx.textAlign = "center";
+    ctx.fillText(c.votos, x+barW/2, baseY-barH-8);
+    ctx.fillStyle = "#7d8a99";
+    ctx.fillText("Nº"+c.numero, x+barW/2, h-8);
+  });
+
+  if(legendaId){
+    const leg = document.getElementById(legendaId);
+    leg.innerHTML = estado.chapas.map(c=>{
+      const pct = totalVotos()>0 ? Math.round((c.votos/totalVotos())*100) : 0;
+      return `<span style="display:flex; align-items:center; gap:6px;"><span style="width:10px;height:10px;border-radius:3px;background:${c.cor};display:inline-block;"></span>${c.nome} — ${c.votos} (${pct}%)</span>`;
+    }).join("");
+  }
+}
+
+/* ===================== ACOMPANHAR VOTOS (painel com senha) ===================== */
+const SENHA_ACOMPANHAR = "2407";
+let _acompInterval = null;
+
+async function solicitarSenhaAcompanhar(){
+  const senha = await pedirTexto("Digite a senha para acompanhar os votos:", "Senha");
+  if(senha === null || senha === false) return;
+  if(senha.trim() === SENHA_ACOMPANHAR){
+    abrirAcompanhar();
+  } else {
+    await avisar("Senha incorreta.");
+  }
+}
+
+function abrirAcompanhar(){
+  document.getElementById("acompTitulo").textContent = estado.config.titulo;
+  document.getElementById("acompSub").textContent = estado.aberta ? "Apuração parcial" : "Votação encerrada";
+  atualizarAcompanhar();
+  mostrarTela("tela-acompanhar");
+  if(_acompInterval) clearInterval(_acompInterval);
+  _acompInterval = setInterval(atualizarAcompanhar, 2000);
+}
+function fecharAcompanhar(){
+  if(_acompInterval){ clearInterval(_acompInterval); _acompInterval = null; }
+  mostrarTela("tela-espera");
+}
+
+function atualizarAcompanhar(){
+  const total = totalVotos();
+  document.getElementById("acompTotal").textContent = total;
+  document.getElementById("acompBrancos").textContent = estado.brancos;
+  document.getElementById("acompNulos").textContent = estado.nulos;
+  document.getElementById("acompSub").textContent = estado.aberta ? "Apuração parcial" : "Votação encerrada";
+
+  const agora = new Date();
+  document.getElementById("acompHora").textContent = "Atualizado às " +
+    agora.toLocaleTimeString("pt-BR", {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+
+  const ordenadas = [...estado.chapas].sort((a,b)=>b.votos-a.votos);
+  const maxVotos = Math.max(1, ...ordenadas.map(c=>c.votos));
+  const cont = document.getElementById("acompRanking");
+  cont.innerHTML = "";
+
+  if(ordenadas.length===0){
+    cont.innerHTML = '<p style="color:var(--muted); font-size:13px; text-align:center;">Nenhuma chapa cadastrada.</p>';
+    return;
+  }
+
+  ordenadas.forEach((c, i)=>{
+    const pct = total>0 ? Math.round((c.votos/total)*100) : 0;
+    const barraPct = Math.round((c.votos/maxVotos)*100);
+    const lider = i===0 && c.votos>0;
+    const item = document.createElement("div");
+    item.className = "ranking-item" + (lider ? " lider" : "");
+    item.innerHTML = `
+      <div class="ranking-pos" style="color:${c.cor}; border:1px solid ${c.cor};">${i+1}º</div>
+      <div class="ranking-info">
+        <div class="nome-linha">
+          <span>${c.nome} <span style="color:var(--muted);">(Nº ${c.numero})</span></span>
+          <span class="pct">${pct}%</span>
+        </div>
+        <div class="ranking-barra-fundo"><div class="ranking-barra-cheia" style="width:${barraPct}%; background:${c.cor};"></div></div>
+      </div>
+      <div class="ranking-votos">${c.votos} voto${c.votos===1?"":"s"}</div>
+    `;
+    cont.appendChild(item);
+  });
+}
+
+/* ===================== RESULTADO FINAL ===================== */
+function abrirResultadosFinal(){
+  const ordenadas = [...estado.chapas].sort((a,b)=>b.votos-a.votos);
+  const vencedora = ordenadas[0];
+  const total = totalVotos();
+  document.getElementById("resTitulo").textContent = estado.config.titulo;
+  document.getElementById("resSub").textContent = estado.aberta ? "Apuração parcial" : "Votação encerrada";
+  document.getElementById("resVencedorNome").textContent = vencedora.votos>0 ? (vencedora.nome+" (Nº "+vencedora.numero+")") : "—";
+  const pctV = total>0 ? Math.round((vencedora.votos/total)*100) : 0;
+  document.getElementById("resVencedorVotos").textContent = vencedora.votos+" votos ("+pctV+"%)";
+
+  const barrasCont = document.getElementById("resBarras");
+  barrasCont.innerHTML = "";
+  ordenadas.forEach(c=>{
+    const pct = total>0 ? Math.round((c.votos/total)*100) : 0;
+    const item = document.createElement("div");
+    item.className = "barra-item";
+    item.innerHTML = `
+      <div class="barra-topo"><span>${c.nome} (Nº ${c.numero})</span><span>${c.votos} votos · ${pct}%</span></div>
+      <div class="barra-fundo"><div class="barra-cheia" style="width:${pct}%; background:${c.cor};"></div></div>
+    `;
+    barrasCont.appendChild(item);
+  });
+
+  document.getElementById("resBrancos").textContent = estado.brancos;
+  document.getElementById("resNulos").textContent = estado.nulos;
+  document.getElementById("resTotal").textContent = total;
+
+  mostrarTela("tela-resultados");
+}
+function fecharResultadoFinal(){ mostrarTela("tela-admin"); preencherFormConfig(); }
+
+function exportarResultados(){
+  const data = {
+    titulo: estado.config.titulo,
+    data: new Date().toISOString(),
+    chapas: estado.chapas,
+    brancos: estado.brancos,
+    nulos: estado.nulos,
+    total: totalVotos()
+  };
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "resultado-eleicao.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ===================== INIT ===================== */
+window.addEventListener("load", ()=>{
+  atualizarTelaEspera();
+  document.getElementById("modalCancelar").onclick = ()=>_fecharModal(false);
+  document.getElementById("modalConfirmar").onclick = ()=>_fecharModal(true);
+  document.getElementById("modalInput").addEventListener("keydown", (e)=>{
+    if(e.key==="Enter") _fecharModal(true);
+  });
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+});
+// libera o teclado físico para digitar votos durante a votação
+document.addEventListener("keydown", (e)=>{
+  if(document.getElementById("tela-votacao").classList.contains("active")){
+    if(/^[0-9]$/.test(e.key)) digitar(+e.key);
+    if(e.key==="Enter") confirmar();
+    if(e.key==="Backspace") corrigir();
+  }
+});
+</script>
+</body>
+</html>
